@@ -11,6 +11,14 @@ datasource db {
   provider = "postgresql"
 }
 
+
+enum UserRole {
+  CUSTOMER
+  AGENT
+  ADMIN
+}
+
+
 enum TicketStatus {
   OPEN
   IN_PROGRESS
@@ -30,6 +38,7 @@ model User {
   name         String
   email        String   @unique
   passwordHash String
+  role         UserRole @default(CUSTOMER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
