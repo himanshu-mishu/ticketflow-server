@@ -2,13 +2,18 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const { createPrismaClient } = require("./db");
+const authRoutes = require("./routes/auth");
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+// Parse incoming JSON request bodies
 app.use(express.json());
+
+// Authentication routes
+app.use("/api/auth", authRoutes);
 
 // Health-check endpoint
 app.get("/api/health", (req, res) => {
@@ -23,7 +28,7 @@ async function startServer() {
 
   await prisma.$connect();
 
-  // Make Prisma available to future route handlers
+  // Make Prisma available to route handlers
   app.locals.prisma = prisma;
 
   app.listen(PORT, () => {
