@@ -1,8 +1,109 @@
 
 const express = require("express");
 const argon2 = require("argon2");
-
+const jwt = require("jsonwebtoken");
 const router = express.Router();
+const authenticate = require("../middleware/authenticate");
+
+
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body ?? {};
+
+    // 1. Validate the request
+    if (
+      typeof email !== "string" ||
+      typeof password !== "string" ||
+      !email.trim() ||
+      !password
+    ) {
+      return res.status(400).json({
+        message: "Email and password are required.",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (normalizedEmail.length > 254 || password.length > 1024) {
+      return res.status(400).json({
+        message: "Invalid email or password.",
+      });
+    }
+
+    // 2. Ensure the JWT secret is configured
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+      console.error("JWT_SECRET is not configured.");
+
+      return res.status(500).json({
+        message: "Authentication is not configured.",
+      });
+    }
+
+    // 3. Find the user
+    const prisma = req.app.locals.prisma;
+
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    // Use a generic error to avoid revealing whether an email exists
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid email or password.",
+      });
+    }
+
+    // 4. Verify the submitted password against its Argon2id hash
+    const passwordIsValid = await argon2.verify(
+      user.passwordHash,
+      password
+    );
+
+    if (!passwordIsValid) {
+      return res.status(401).json({
+        message: "Invalid email or password.",
+      });
+    }
+
+    // 5. Sign a short-lived JWT
+    const token = jwt.sign(
+      { sub: user.id },
+      jwtSecret,
+      { expiresIn: "15m" }
+    );
+
+    // 6. Set the JWT in an HTTP-only cookie
+    res.cookie("ticketflow_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 15 * 60 * 1000,
+    });
+
+    // 7. Return safe user information
+    return res.status(200).json({
+      message: "Login successful.",
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+
+    return res.status(500).json({
+      message: "Unable to log in right now.",
+    });
+  }
+});
+
+
+
 
 router.post("/signup", async (req, res) => {
   try {
@@ -34,7 +135,7 @@ router.post("/signup", async (req, res) => {
 
     if (
       normalizedEmail.length > 254 ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
+      !/^[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
     ) {
       return res.status(400).json({
         message: "Please provide a valid email address.",
@@ -101,6 +202,25 @@ router.post("/signup", async (req, res) => {
       message: "Unable to create your account right now.",
     });
   }
+});
+
+router.get("/me", authenticate, (req, res) => {
+  return res.status(200).json({
+    user: req.user,
+  });
+});
+
+router.post("/logout", (req, res) => {
+  res.clearCookie("ticketflow_token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
+
+  return res.status(200).json({
+    message: "Logged out successfully.",
+  });
 });
 
 module.exports = router;

@@ -3,6 +3,7 @@ const express = require("express");
 const dotenv = require("dotenv");
 const { createPrismaClient } = require("./db");
 const authRoutes = require("./routes/auth");
+const cookieParser = require("cookie-parser");
 
 dotenv.config();
 
@@ -11,6 +12,7 @@ const PORT = process.env.PORT || 5001;
 
 // Parse incoming JSON request bodies
 app.use(express.json());
+app.use(cookieParser());
 
 // Authentication routes
 app.use("/api/auth", authRoutes);
