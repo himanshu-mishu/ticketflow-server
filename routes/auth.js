@@ -1,10 +1,8 @@
-
 const express = require("express");
 const argon2 = require("argon2");
 const jwt = require("jsonwebtoken");
 const router = express.Router();
 const authenticate = require("../middleware/authenticate");
-
 
 router.post("/login", async (req, res) => {
   try {
@@ -56,10 +54,7 @@ router.post("/login", async (req, res) => {
     }
 
     // 4. Verify the submitted password against its Argon2id hash
-    const passwordIsValid = await argon2.verify(
-      user.passwordHash,
-      password
-    );
+    const passwordIsValid = await argon2.verify(user.passwordHash, password);
 
     if (!passwordIsValid) {
       return res.status(401).json({
@@ -68,11 +63,7 @@ router.post("/login", async (req, res) => {
     }
 
     // 5. Sign a short-lived JWT
-    const token = jwt.sign(
-      { sub: user.id },
-      jwtSecret,
-      { expiresIn: "15m" }
-    );
+    const token = jwt.sign({ sub: user.id }, jwtSecret, { expiresIn: "15m" });
 
     // 6. Set the JWT in an HTTP-only cookie
     res.cookie("ticketflow_token", token, {
@@ -101,9 +92,6 @@ router.post("/login", async (req, res) => {
     });
   }
 });
-
-
-
 
 router.post("/signup", async (req, res) => {
   try {
@@ -135,7 +123,7 @@ router.post("/signup", async (req, res) => {
 
     if (
       normalizedEmail.length > 254 ||
-      !/^[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
     ) {
       return res.status(400).json({
         message: "Please provide a valid email address.",

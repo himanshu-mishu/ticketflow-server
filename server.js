@@ -4,10 +4,15 @@ const dotenv = require("dotenv");
 const { createPrismaClient } = require("./db");
 const authRoutes = require("./routes/auth");
 const cookieParser = require("cookie-parser");
+const cors = require("cors");
 
 dotenv.config();
 
 const app = express();
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true,
+}));
 const PORT = process.env.PORT || 5001;
 
 // Parse incoming JSON request bodies
